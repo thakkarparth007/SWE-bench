@@ -281,7 +281,7 @@ class TestbedContextManager:
 
                     # Install dependencies
                     path_to_reqs = get_requirements(setup_ref_instance, self.testbed)
-                    cmd = f"source {path_activate} {env_name} && echo 'activate successful' && pip install -r {path_to_reqs}"
+                    cmd = f"source {path_activate} {env_name} && echo 'activate successful' && {self.path_conda}/envs/{env_name}/bin/pip install -r {path_to_reqs}"
                     logger_testbed.info(
                         f"[Testbed] Installing dependencies for {env_name}; Command: {cmd}"
                     )
@@ -326,11 +326,11 @@ class TestbedContextManager:
 
                 # Install additional packages if specified
                 if "pip_packages" in install:
-                    cmd = f"source {path_activate} {env_name} && pip install {install['pip_packages']}"
+                    cmd = f"source {path_activate} {env_name} && {self.path_conda}/envs/{env_name}/bin/pip install {install['pip_packages']}"
                     logger_testbed.info(
                         f"[Testbed] Installing pip packages for {env_name}; Command: {cmd}"
                     )
-                    self.exec(cmd.split(" "))
+                    self.exec(cmd.split(" "), shell=True)
 
         return self
 
@@ -529,7 +529,10 @@ class TaskEnvContextManager:
         if "install" not in specifications:
             return True
 
-        cmd_install = f"{self.cmd_activate} && {specifications['install']}"
+        install_cmd = specifications["install"]
+        if install_cmd.startswith("python") or install_cmd.startswith("pip"):
+            install_cmd = f"{self.conda_path}/envs/{self.venv}/bin/" + specifications["install"]
+        cmd_install = f"{self.cmd_activate} && {install_cmd}"
         logger_taskenv.info(
             f"[{self.testbed_name}] [{instance[KEY_INSTANCE_ID]}] Installing with command: {cmd_install}"
         )
