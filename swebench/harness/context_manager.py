@@ -77,6 +77,7 @@ class ExecWrapper:
             else:
                 self.logger.write(f"Command: {cmd}", level=DEBUG)
             combined_args = {**self.subprocess_args, **kwargs}
+            combined_args["env"] = os.environ.copy()
             self.logger.write(f"Subprocess args: {json.dumps(combined_args)}", level=DEBUG)
             output = subprocess.run(cmd, **combined_args)
             self.logger.write(f"Std. Output:\n{output.stdout}", level=DEBUG)
@@ -164,12 +165,12 @@ class TestbedContextManager:
             if version not in self.task_instances_grouped[repo]:
                 self.task_instances_grouped[repo][version] = []
             self.task_instances_grouped[repo][version].append(instance)
-        
+
         # Check if instances are from single repo/version
         self.is_single_repo_version = len(self.task_instances_grouped) == 1 and \
             len(self.task_instances_grouped) == 1 and \
             len(list(self.task_instances_grouped.values())[0]) == 1
-        
+
         # Create log file for testbed
         log_file_name = "testbed"
         if self.is_single_repo_version:
@@ -341,7 +342,7 @@ class TestbedContextManager:
 
                     # Install dependencies
                     path_to_reqs = get_requirements(setup_ref_instance, self.testbed)
-                    cmd = f". {path_activate} {env_name} && echo 'activate successful' && pip install -r {path_to_reqs}"
+                    cmd = f". {path_activate} {env_name} && echo 'activate successful' && {self.path_conda}/envs/{env_name}/bin/pip install -r {path_to_reqs}"
                     self.log.write(f"Installing dependencies for {env_name}; Command: {cmd}")
                     self.exec(cmd, shell=True)
                     os.remove(path_to_reqs)
@@ -382,7 +383,7 @@ class TestbedContextManager:
                     cmd = f"{exec_cmd} create -n {env_name} python={install['python']} {pkgs} -y"
                     self.log.write(f"Creating environment {env_name}; Command: {cmd}")
                     self.exec(cmd.split(" "))
-                
+
                 arch = platform.machine()
                 arch_specific_packages = install.get("arch_specific_packages", {}).get(arch, "")
                 if arch_specific_packages:
@@ -393,7 +394,7 @@ class TestbedContextManager:
                 # Install additional packages if specified
                 if "pip_packages" in install:
                     pip_packages = " ".join(install["pip_packages"])
-                    cmd = f". {path_activate} {env_name} && pip install {pip_packages}"
+                    cmd = f". {path_activate} {env_name} && {self.path_conda}/envs/{env_name}/bin/pip install {install['pip_packages']}"
                     self.log.write(f"Installing pip packages for {env_name}; Command: {cmd}")
                     self.exec(cmd, shell=True)
 
@@ -609,6 +610,8 @@ class TaskEnvContextManager:
         if "install" not in specifications:
             return True
 
+        if specifications['install'].startswith("python") or specifications['install'].startswith("pip"):
+            specifications['install'] = f"{self.conda_path}/envs/{self.venv}/bin/" + specifications['install']
         cmd_install = f"{self.cmd_activate} && {specifications['install']}"
         self.log.write(f"Running installation command: {cmd_install}")
         try:
