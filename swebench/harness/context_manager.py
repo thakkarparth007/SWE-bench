@@ -393,8 +393,8 @@ class TestbedContextManager:
 
                 # Install additional packages if specified
                 if "pip_packages" in install:
-                    pip_packages = " ".join(install["pip_packages"])
-                    cmd = f". {path_activate} {env_name} && {self.path_conda}/envs/{env_name}/bin/pip install {install['pip_packages']}"
+                    pip_packages = " ".join(install["pip_packages"]) if isinstance(install["pip_packages"], list) else install["pip_packages"]
+                    cmd = f". {path_activate} {env_name} && {self.path_conda}/envs/{env_name}/bin/pip install {pip_packages}"
                     self.log.write(f"Installing pip packages for {env_name}; Command: {cmd}")
                     self.exec(cmd, shell=True)
 
